@@ -1,6 +1,4 @@
 streamlit
 numpy
-matplotlib
 Pillow
-PyMuPDF
 fpdf2
