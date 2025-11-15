@@ -1,5 +1,4 @@
 streamlit
 numpy
-Pillow
-fpdf
-io
+pillow
+fpdf2
