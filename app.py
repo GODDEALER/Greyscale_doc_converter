@@ -12,28 +12,30 @@ set_custom_page_config()
 render_header()
 
 # ------------------ SIDEBAR CHOICE ------------------
-choice = render_sidebar()  # "Convert to Grayscale Image" or "Convert to Grayscale PDF"
+choice = render_sidebar()  # Image or PDF conversion
 
 # ------------------ IMAGE UPLOAD ------------------
-uploaded_file = st.file_uploader("Upload an Image (JPG, PNG, JPEG)", type=["jpg", "jpeg", "png"])
+uploaded_file = st.file_uploader("Upload an Image (JPG, PNG, JPEG)", 
+                                 type=["jpg", "jpeg", "png"])
 
 if uploaded_file is not None:
+
     # Load image
     img = Image.open(uploaded_file).convert("RGB")
     img_array = np.array(img)
 
-    # Convert to grayscale (High Quality)
+    # Convert to grayscale
     gray = np.dot(img_array[..., :3], [0.2989, 0.5870, 0.1140])
     gray_img = Image.fromarray(gray.astype(np.uint8))
 
-    # Display Preview
+    # Display preview
     col1, col2 = st.columns(2)
     with col1:
         st.image(img, caption="Original Image", use_container_width=True)
     with col2:
         st.image(gray_img, caption="Grayscale Preview", use_container_width=True)
 
-    # ------------------ LOGIC: GRAYSCALE IMAGE DOWNLOAD ------------------
+    # ------------------ OPTION: DOWNLOAD GRAYSCALE IMAGE ------------------
     if choice == "🖼️ Convert to Grayscale Image":
 
         buf = io.BytesIO()
@@ -47,26 +49,25 @@ if uploaded_file is not None:
             mime="image/png"
         )
 
-    # ------------------ LOGIC: GRAYSCALE PDF DOWNLOAD ------------------
+    # ------------------ OPTION: DOWNLOAD GRAYSCALE PDF ------------------
     elif choice == "📄 Convert to Grayscale PDF":
 
-        # Convert grayscale image to bytes
-        img_buffer = io.BytesIO()
-        gray_img.save(img_buffer, format="PNG")
-        img_data = img_buffer.getvalue()
-
-        # Write bytes to a safe temp path (Streamlit Cloud compatible)
+        # Save grayscale image to temp file (Streamlit Cloud safe)
         temp_path = "/tmp/grayscale_image.png"
-        with open(temp_path, "wb") as f:
-            f.write(img_data)
+        gray_img.save(temp_path, format="PNG")
 
         # Create PDF
         pdf = FPDF()
         pdf.add_page()
         pdf.image(temp_path, x=10, y=10, w=190)
 
-        # Get PDF as bytes
-        pdf_bytes = pdf.output(dest="S").encode("latin1")
+        # FPDF / FPDF2 Compatibility
+        pdf_out = pdf.output(dest="S")
+
+        if isinstance(pdf_out, str):
+            pdf_bytes = pdf_out.encode("latin1")     # fpdf (older)
+        else:
+            pdf_bytes = pdf_out                      # fpdf2 (modern)
 
         st.download_button(
             label="📄 Download Grayscale PDF",
@@ -78,5 +79,6 @@ if uploaded_file is not None:
 else:
     st.info("Please upload an image file to start.")
 
+# ------------------ FOOTER ------------------
 st.markdown("---")
 st.caption("© 2025 DECODER | Built with ❤️ using Python & Streamlit")
