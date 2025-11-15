@@ -3,6 +3,8 @@ import numpy as np
 from PIL import Image
 from fpdf import FPDF
 import io
+import os
+
 from ui import set_custom_page_config, render_header, render_sidebar
 
 # ------------------ PAGE CONFIG & HEADER ------------------
@@ -10,60 +12,65 @@ set_custom_page_config()
 render_header()
 
 # ------------------ SIDEBAR CHOICE ------------------
-choice = render_sidebar()  # Will show: "Image to Grayscale" or "Image to Grayscale PDF"
+choice = render_sidebar()  # "Convert to Grayscale Image" or "Convert to Grayscale PDF"
 
 # ------------------ IMAGE UPLOAD ------------------
 uploaded_file = st.file_uploader("Upload an Image (JPG, PNG, JPEG)", type=["jpg", "jpeg", "png"])
 
 if uploaded_file is not None:
     # Load image
-    img = Image.open(uploaded_file)
+    img = Image.open(uploaded_file).convert("RGB")
     img_array = np.array(img)
 
-    # Convert to grayscale
+    # Convert to grayscale (High Quality)
     gray = np.dot(img_array[..., :3], [0.2989, 0.5870, 0.1140])
     gray_img = Image.fromarray(gray.astype(np.uint8))
 
-    # Display preview
+    # Display Preview
     col1, col2 = st.columns(2)
     with col1:
         st.image(img, caption="Original Image", use_container_width=True)
     with col2:
         st.image(gray_img, caption="Grayscale Preview", use_container_width=True)
 
-    # ------------------ LOGIC: GRAYSCALE IMAGE ------------------
-    if choice == "Image to Grayscale":
+    # ------------------ LOGIC: GRAYSCALE IMAGE DOWNLOAD ------------------
+    if choice == "🖼️ Convert to Grayscale Image":
+
         buf = io.BytesIO()
         gray_img.save(buf, format="PNG")
-        byte_im = buf.getvalue()
+        buf.seek(0)
 
         st.download_button(
             label="📥 Download Grayscale Image",
-            data=byte_im,
+            data=buf.getvalue(),
             file_name="grayscale_image.png",
             mime="image/png"
         )
 
-    # ------------------ LOGIC: GRAYSCALE IMAGE TO PDF ------------------
-    elif choice == "Image to Grayscale PDF":
-        pdf = FPDF()
-        pdf.add_page()
+    # ------------------ LOGIC: GRAYSCALE PDF DOWNLOAD ------------------
+    elif choice == "📄 Convert to Grayscale PDF":
 
-        # Save grayscale image temporarily in memory
+        # Convert grayscale image to bytes
         img_buffer = io.BytesIO()
         gray_img.save(img_buffer, format="PNG")
-        img_buffer.seek(0)
+        img_data = img_buffer.getvalue()
 
-        # Resize to fit A4 width
-        pdf.image(img_buffer, x=10, y=10, w=190)
+        # Write bytes to a safe temp path (Streamlit Cloud compatible)
+        temp_path = "/tmp/grayscale_image.png"
+        with open(temp_path, "wb") as f:
+            f.write(img_data)
 
-        pdf_output = io.BytesIO()
-        pdf.output(pdf_output)
-        pdf_output.seek(0)
+        # Create PDF
+        pdf = FPDF()
+        pdf.add_page()
+        pdf.image(temp_path, x=10, y=10, w=190)
+
+        # Get PDF as bytes
+        pdf_bytes = pdf.output(dest="S").encode("latin1")
 
         st.download_button(
             label="📄 Download Grayscale PDF",
-            data=pdf_output,
+            data=pdf_bytes,
             file_name="grayscale_document.pdf",
             mime="application/pdf"
         )
